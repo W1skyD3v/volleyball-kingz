@@ -1,82 +1,120 @@
 import { describe, expect, it } from 'vitest';
-import { classifyArea, fullCourtConfirmed, normalizeElement, polygonAreaM2, type OsmElement } from '../src/index.js';
+import {
+  PERMIT_NOTE, classifyCourt, clusterCourts, courtFitConfirmed, courtNote, estimateNets, isPublicAccess, normalizeElement, polygonAreaM2,
+  type ImportedCourt, type OsmElement,
+} from '../src/index.js';
 
-// A rectangle of w x h metres near LA.
 function rect(w: number, h: number) {
-  const lat = 34.05;
+  const lat = 34.0;
   const dLat = h / 111_320;
   const dLon = w / (111_320 * Math.cos((lat * Math.PI) / 180));
-  const lon = -118.25;
-  return [
-    { lat, lon }, { lat, lon: lon + dLon }, { lat: lat + dLat, lon: lon + dLon }, { lat: lat + dLat, lon }, { lat, lon },
-  ];
+  const lon = -118.5;
+  return [{ lat, lon }, { lat, lon: lon + dLon }, { lat: lat + dLat, lon: lon + dLon }, { lat: lat + dLat, lon }, { lat, lon }];
 }
+const base: OsmElement = { type: 'way', id: 1, center: { lat: 33.99, lon: -118.47 } };
+const tags = (t: Record<string, string>): OsmElement => ({ ...base, tags: { leisure: 'pitch', ...t } });
 
-describe('court area', () => {
-  it('computes polygon area close to the true value', () => {
-    expect(polygonAreaM2(rect(28, 15))).toBeCloseTo(420, 0);
+describe('classification', () => {
+  it('beach: sport=beach_volleyball or a sand surface', () => {
+    expect(classifyCourt({ sport: 'beach_volleyball' })).toBe('beach');
+    expect(classifyCourt({ sport: 'volleyball', surface: 'sand' })).toBe('beach');
+    expect(classifyCourt({ sport: 'volleyball;beach_volleyball' })).toBe('beach');
   });
-  it('classifies full ~420, half ~200, tiny/huge/null as unknown', () => {
-    expect(classifyArea(420)).toBe('full');
-    expect(classifyArea(200)).toBe('half');
-    expect(classifyArea(40)).toBe('unknown');
-    expect(classifyArea(5000)).toBe('unknown');
-    expect(classifyArea(null)).toBe('unknown');
+  it('indoor, grass and unknown', () => {
+    expect(classifyCourt({ sport: 'volleyball', indoor: 'yes' })).toBe('indoor');
+    expect(classifyCourt({ sport: 'volleyball', surface: 'grass' })).toBe('grass');
+    expect(classifyCourt({ sport: 'volleyball', surface: 'artificial_turf' })).toBe('grass');
+    expect(classifyCourt({ sport: 'volleyball' })).toBe('unknown');
+    expect(classifyCourt({ sport: 'volleyball', surface: 'asphalt' })).toBe('unknown');
   });
-  it('normalizes a way with geometry using area, not tags', () => {
-    const el: OsmElement = { type: 'way', id: 1, geometry: rect(28, 15), tags: { leisure: 'pitch', sport: 'basketball', hoops: '1' } };
-    const c = normalizeElement(el)!;
-    expect(c.courtType).toBe('full');
-    expect(c.typeSource).toBe('geometry');
-    expect(c.areaM2).toBe(420);
-  });
-  it('falls back to hoops tag as a hint when there is no geometry', () => {
-    const base = { type: 'way' as const, id: 2, center: { lat: 34, lon: -118 } };
-    expect(normalizeElement({ ...base, tags: { leisure: 'pitch', sport: 'basketball', hoops: '2' } })).toMatchObject({ courtType: 'full', typeSource: 'tag' });
-    expect(normalizeElement({ ...base, tags: { leisure: 'pitch', sport: 'basketball', hoops: '1' } })).toMatchObject({ courtType: 'half', typeSource: 'tag' });
-    expect(normalizeElement({ ...base, tags: { leisure: 'pitch', sport: 'basketball' } })).toMatchObject({ courtType: 'unknown', typeSource: 'none' });
-  });
-  it('skips non-basketball and elements without coordinates', () => {
-    expect(normalizeElement({ type: 'node', id: 3, lat: 1, lon: 1, tags: { leisure: 'pitch', sport: 'tennis' } })).toBeNull();
-    expect(normalizeElement({ type: 'way', id: 4, tags: { leisure: 'pitch', sport: 'basketball' } })).toBeNull();
-  });
-  it('5v5 needs an estimated-full court AND a player confirmation', () => {
-    expect(fullCourtConfirmed({ courtType: 'full', fullConfirmations: 0 })).toBe(false);
-    expect(fullCourtConfirmed({ courtType: 'full', fullConfirmations: 1 })).toBe(true);
-    expect(fullCourtConfirmed({ courtType: 'half', fullConfirmations: 3 })).toBe(false);
+  it('first match wins: sand beats indoor and grass tags', () => {
+    expect(classifyCourt({ sport: 'volleyball', surface: 'sand', indoor: 'yes' })).toBe('beach');
   });
 });
 
-import { clusterCourts, type ImportedCourt } from '../src/index.js';
-
-const pitch = (id: number, lat: number, lng: number, over: Partial<ImportedCourt> = {}): ImportedCourt => ({
-  osmType: 'node', osmId: id, name: null, lat, lng, courtType: 'half', typeSource: 'tag', hoops: 1, areaM2: null, access: null, indoor: null, ...over,
+describe('normalizeElement', () => {
+  it('imports volleyball pitches only (also multi-sport values), not basketball or tennis', () => {
+    expect(normalizeElement(tags({ sport: 'volleyball' }))).not.toBeNull();
+    expect(normalizeElement(tags({ sport: 'soccer;volleyball' }))).not.toBeNull();
+    expect(normalizeElement(tags({ sport: 'beach_volleyball', surface: 'sand' }))).toMatchObject({ courtType: 'beach', typeSource: 'tag', surface: 'sand' });
+    expect(normalizeElement(tags({ sport: 'basketball' }))).toBeNull();
+    expect(normalizeElement(tags({ sport: 'tennis' }))).toBeNull();
+    expect(normalizeElement({ ...base, tags: { sport: 'volleyball' } })).toBeNull(); // not leisure=pitch
+    expect(normalizeElement({ type: 'node', id: 3, tags: { leisure: 'pitch', sport: 'volleyball' } })).toBeNull(); // no position
+  });
+  it('unknown class has typeSource none; named courts keep their name and access', () => {
+    expect(normalizeElement(tags({ sport: 'volleyball', name: 'Dockweiler', access: 'yes' }))).toMatchObject({ courtType: 'unknown', typeSource: 'none', name: 'Dockweiler', access: 'yes' });
+  });
+  it('takes a position from lat/lon, center, bounds or geometry', () => {
+    expect(normalizeElement({ type: 'node', id: 9, lat: 34.1, lon: -118.2, tags: { leisure: 'pitch', sport: 'volleyball' } })).toMatchObject({ lat: 34.1, lng: -118.2 });
+    expect(normalizeElement({ type: 'way', id: 9, geometry: rect(10, 10), tags: { leisure: 'pitch', sport: 'volleyball' } })?.areaM2).toBe(100);
+  });
 });
 
-describe('clusterCourts', () => {
-  it('merges two one-hoop nodes ~20 m apart into one full-court site (estimate)', () => {
-    const sites = clusterCourts([pitch(1, 33.9268247, -118.3444556), pitch(2, 33.9266477, -118.3444567)]);
-    expect(sites).toHaveLength(1);
-    expect(sites[0]).toMatchObject({ memberCount: 2, hoops: 2, courtType: 'full', typeSource: 'tag' });
+describe('nets', () => {
+  it('reads nets, courts and volleyball:nets tags', () => {
+    expect(estimateNets({ nets: '4' }, null)).toBe(4);
+    expect(estimateNets({ courts: '2' }, null)).toBe(2);
+    expect(estimateNets({ 'volleyball:nets': '3' }, null)).toBe(3);
+    expect(estimateNets({ nets: 'many' }, 400)).toBe(2); // bad tag -> area estimate
+    expect(estimateNets({ nets: '0' }, null)).toBeNull();
+    expect(estimateNets({ nets: '99' }, null)).toBeNull();
   });
-  it('keeps far-apart pitches separate', () => {
-    expect(clusterCourts([pitch(1, 34.0, -118.0), pitch(2, 34.01, -118.0)])).toHaveLength(2);
+  it('estimates from area only when plausible', () => {
+    expect(estimateNets({}, 128)).toBe(1);
+    expect(estimateNets({}, 520)).toBe(2);
+    expect(estimateNets({}, 1000)).toBe(4);
+    expect(estimateNets({}, 20)).toBeNull();
+    expect(estimateNets({}, 9000)).toBeNull();
+    expect(estimateNets({}, null)).toBeNull();
+  });
+  it('polygon area is close to the true value', () => {
+    expect(polygonAreaM2(rect(8, 16))).toBeCloseTo(128, 0);
+    expect(polygonAreaM2(rect(9, 18))).toBeCloseTo(162, 0);
+  });
+});
+
+describe('beach permit note and 6v6 fit', () => {
+  it('beach courts carry the check hours and permits note; others do not', () => {
+    expect(courtNote('beach')).toBe(PERMIT_NOTE);
+    expect(PERMIT_NOTE).toMatch(/hours and permits/);
+    for (const c of ['indoor', 'grass', 'unknown'] as const) expect(courtNote(c)).toBeNull();
+  });
+  it('6v6 fit needs an indoor or grass court and one confirmation', () => {
+    expect(courtFitConfirmed({ courtType: 'indoor', fitConfirmations: 0 })).toBe(false);
+    expect(courtFitConfirmed({ courtType: 'indoor', fitConfirmations: 1 })).toBe(true);
+    expect(courtFitConfirmed({ courtType: 'grass', fitConfirmations: 2 })).toBe(true);
+    expect(courtFitConfirmed({ courtType: 'beach', fitConfirmations: 3 })).toBe(false);
+    expect(courtFitConfirmed({ courtType: 'unknown', fitConfirmations: 3 })).toBe(false);
+  });
+  it('private access is hidden', () => {
+    expect(isPublicAccess(null)).toBe(true);
+    expect(isPublicAccess('yes')).toBe(true);
+    for (const a of ['private', 'no', 'customers', 'permit']) expect(isPublicAccess(a)).toBe(false);
+  });
+});
+
+const pitch = (id: number, lat: number, lng: number, o: Partial<ImportedCourt> = {}): ImportedCourt => ({
+  osmType: 'node', osmId: id, name: null, lat, lng, courtType: 'beach', typeSource: 'tag', nets: 1, surface: 'sand', areaM2: null, access: null, indoor: null, ...o,
+});
+describe('clustering into sites', () => {
+  it('merges pitches within 35 m of the same access and sums their nets', () => {
+    const sites = clusterCourts([pitch(1, 33.9867, -118.4731, { name: 'Venice' }), pitch(2, 33.98672, -118.47312), pitch(3, 33.9900, -118.4731)]);
+    expect(sites).toHaveLength(2);
+    expect(sites.find((s) => s.memberCount === 2)).toMatchObject({ nets: 2, courtType: 'beach', name: 'Venice', memberOsmIds: ['node/1', 'node/2'] });
   });
   it('never folds a private pitch into a public one', () => {
-    const sites = clusterCourts([pitch(1, 34.0, -118.0), pitch(2, 34.00005, -118.0, { access: 'private' })]);
-    expect(sites).toHaveLength(2);
+    expect(clusterCourts([pitch(1, 34, -118), pitch(2, 34.00001, -118, { access: 'private' })])).toHaveLength(2);
   });
-  it('chains transitive neighbours and takes the first name', () => {
-    const sites = clusterCourts([pitch(1, 34.0, -118.0), pitch(2, 34.0002, -118.0, { name: 'Rec Park' }), pitch(3, 34.0004, -118.0)]);
-    expect(sites).toHaveLength(1);
-    expect(sites[0]!.name).toBe('Rec Park');
-    expect(sites[0]!.memberOsmIds).toEqual(['node/1', 'node/2', 'node/3']);
+  it('a site takes the class most pitches agree on; a tie is unknown', () => {
+    const maj = clusterCourts([pitch(1, 34, -118, { courtType: 'grass' }), pitch(2, 34.00001, -118, { courtType: 'grass' }), pitch(3, 34.00002, -118, { courtType: 'beach' })]);
+    expect(maj[0]).toMatchObject({ courtType: 'grass', typeSource: 'tag' });
+    const tie = clusterCourts([pitch(1, 34, -118, { courtType: 'grass' }), pitch(2, 34.00001, -118, { courtType: 'beach' })]);
+    expect(tie[0]).toMatchObject({ courtType: 'unknown', typeSource: 'none' });
+    const none = clusterCourts([pitch(1, 34, -118, { courtType: 'unknown', typeSource: 'none', nets: null }), pitch(2, 34.00001, -118, { courtType: 'unknown', typeSource: 'none', nets: null })]);
+    expect(none[0]).toMatchObject({ courtType: 'unknown', nets: null });
   });
-  it('measured geometry beats summed hoops', () => {
-    const sites = clusterCourts([
-      pitch(1, 34.0, -118.0, { courtType: 'half', typeSource: 'geometry', areaM2: 200 }),
-      pitch(2, 34.0001, -118.0, { hoops: 1 }),
-    ]);
-    expect(sites[0]).toMatchObject({ courtType: 'half', typeSource: 'geometry' });
+  it('far-apart pitches stay separate sites', () => {
+    expect(clusterCourts([pitch(1, 34, -118), pitch(2, 34.01, -118)])).toHaveLength(2);
   });
 });

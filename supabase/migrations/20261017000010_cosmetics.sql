@@ -1,9 +1,9 @@
--- Cosmetics: catalog, ownership, loadout, earn-only shop. Gold only; premium-only items cannot be bought (payments are a stub).
+-- Cosmetics: catalog, ownership, loadout, earn-only shop. Royalty Bucks (internal name: gold) only; premium-only items cannot be bought (payments are a stub).
 -- Nothing here is read by rating code. The seed block below is generated from packages/core/src/cosmetics.ts (pnpm catalog:sql).
 
 create table public.cosmetic_items (
   id text primary key,
-  slot text not null check (slot in ('jersey', 'shorts', 'shoes', 'headwear', 'accessory', 'ball', 'celebration', 'dunk', 'shot', 'dribble', 'pass')),
+  slot text not null check (slot in ('jersey', 'shorts', 'kneepads', 'shoes', 'eyewear', 'accessory', 'ball', 'celebration', 'serve', 'spike', 'set', 'block', 'dive')),
   rarity text not null check (rarity in ('common', 'rare', 'epic', 'legendary')),
   name text not null,
   variant text not null,
@@ -42,36 +42,41 @@ insert into public.cosmetic_items (id, slot, rarity, name, variant, price, start
   ('jersey-royal', 'jersey', 'legendary', 'Royal jersey', 'royal', 2000, false, true),
   ('shorts-plain', 'shorts', 'common', 'Plain shorts', 'plain', 100, true, false),
   ('shorts-stripe', 'shorts', 'common', 'Side stripe shorts', 'stripe', 100, false, false),
-  ('shoes-low', 'shoes', 'common', 'Low tops', 'low', 100, true, false),
-  ('shoes-high', 'shoes', 'common', 'High tops', 'high', 100, false, false),
-  ('head-headband', 'headwear', 'common', 'Headband', 'headband', 100, false, false),
-  ('head-cap', 'headwear', 'rare', 'Snapback cap', 'cap', 300, false, false),
-  ('head-crown', 'headwear', 'legendary', 'Kingz crown', 'crown', 2000, false, false),
-  ('acc-wristbands', 'accessory', 'common', 'Wristbands', 'wristbands', 100, true, false),
-  ('acc-shades', 'accessory', 'rare', 'Court shades', 'shades', 300, false, false),
-  ('acc-chain', 'accessory', 'epic', 'Gold chain', 'chain', 800, false, false),
+  ('shorts-board', 'shorts', 'rare', 'Beach board shorts', 'board', 300, false, false),
+  ('knee-basic', 'kneepads', 'common', 'Knee pads', 'basic', 100, true, false),
+  ('knee-pro', 'kneepads', 'rare', 'Pro knee pads', 'pro', 300, false, false),
+  ('knee-neon', 'kneepads', 'epic', 'Neon knee pads', 'neon', 800, false, false),
+  ('shoes-low', 'shoes', 'common', 'Indoor low shoes', 'low', 100, true, false),
+  ('shoes-high', 'shoes', 'common', 'Indoor high shoes', 'high', 100, false, false),
+  ('eye-visor', 'eyewear', 'common', 'Sun visor', 'visor', 100, false, false),
+  ('eye-shades', 'eyewear', 'rare', 'Beach shades', 'shades', 300, false, false),
+  ('eye-mirror', 'eyewear', 'epic', 'Mirror shades', 'mirror', 800, false, false),
+  ('acc-sleeves', 'accessory', 'common', 'Arm sleeves', 'sleeves', 100, true, false),
+  ('acc-headband', 'accessory', 'common', 'Headband', 'headband', 100, false, false),
+  ('acc-crown', 'accessory', 'legendary', 'Kingz crown', 'crown', 2000, false, false),
   ('ball-classic', 'ball', 'common', 'Classic ball', 'classic', 100, true, false),
+  ('ball-beach', 'ball', 'rare', 'Beach ball skin', 'beach', 300, false, false),
   ('ball-neon', 'ball', 'rare', 'Neon ball', 'neon', 300, false, false),
   ('ball-gold', 'ball', 'epic', 'Gold ball', 'gold', 800, false, false),
   ('cel-fist', 'celebration', 'common', 'Fist pump', 'fist', 100, true, false),
   ('cel-flex', 'celebration', 'rare', 'Flex', 'flex', 300, false, false),
   ('cel-shimmy', 'celebration', 'epic', 'Shimmy', 'shimmy', 800, false, false),
-  ('dunk-two-hand', 'dunk', 'common', 'Two-hand slam', 'two-hand', 100, true, false),
-  ('dunk-tomahawk', 'dunk', 'rare', 'Tomahawk', 'tomahawk', 300, false, false),
-  ('dunk-windmill', 'dunk', 'epic', 'Windmill', 'windmill', 800, false, false),
-  ('dunk-spin', 'dunk', 'legendary', '360 spin dunk', 'spin', 2000, false, false),
-  ('shot-set', 'shot', 'common', 'Set shot', 'set', 100, true, false),
-  ('shot-fadeaway', 'shot', 'rare', 'Fadeaway', 'fadeaway', 300, false, false),
-  ('shot-one-leg', 'shot', 'rare', 'One-leg jumper', 'one-leg', 300, false, false),
-  ('shot-stepback', 'shot', 'epic', 'Step-back three', 'stepback', 800, false, false),
-  ('dribble-standard', 'dribble', 'common', 'Standard dribble', 'standard', 100, true, false),
-  ('dribble-crossover', 'dribble', 'common', 'Crossover', 'crossover', 100, false, false),
-  ('dribble-behind', 'dribble', 'rare', 'Behind the back', 'behind', 300, false, false),
-  ('dribble-legs', 'dribble', 'epic', 'Between the legs', 'legs', 800, false, false),
-  ('pass-chest', 'pass', 'common', 'Chest pass', 'chest', 100, true, false),
-  ('pass-bounce', 'pass', 'common', 'Bounce pass', 'bounce', 100, false, false),
-  ('pass-behind', 'pass', 'rare', 'Behind-the-back pass', 'behind', 300, false, false),
-  ('pass-nolook', 'pass', 'epic', 'No-look pass', 'nolook', 800, false, false);
+  ('serve-float', 'serve', 'common', 'Float serve', 'float', 100, true, false),
+  ('serve-jump', 'serve', 'rare', 'Jump serve', 'jump', 300, false, false),
+  ('serve-power', 'serve', 'epic', 'Power jump serve', 'power', 800, false, false),
+  ('spike-standard', 'spike', 'common', 'Standard spike', 'standard', 100, true, false),
+  ('spike-cut', 'spike', 'rare', 'Cut shot', 'cut', 300, false, false),
+  ('spike-power', 'spike', 'epic', 'Power swing', 'power', 800, false, false),
+  ('spike-spin', 'spike', 'legendary', '360 spike', 'spin', 2000, false, false),
+  ('set-standard', 'set', 'common', 'Overhead set', 'standard', 100, true, false),
+  ('set-jump', 'set', 'rare', 'Jump set', 'jump', 300, false, false),
+  ('set-back', 'set', 'epic', 'Back set', 'back', 800, false, false),
+  ('block-standard', 'block', 'common', 'Two-hand block', 'standard', 100, true, false),
+  ('block-swing', 'block', 'rare', 'Swing block', 'swing', 300, false, false),
+  ('block-stuff', 'block', 'epic', 'Stuff block', 'stuff', 800, false, false),
+  ('dive-standard', 'dive', 'common', 'Dive save', 'standard', 100, true, false),
+  ('dive-roll', 'dive', 'rare', 'Dive and roll', 'roll', 300, false, false),
+  ('dive-pancake', 'dive', 'epic', 'Pancake save', 'pancake', 800, false, false);
 -- END CATALOG SEED
 
 -- Grants the starter pack (idempotent) and returns {gold, owned, loadout}.
@@ -124,12 +129,12 @@ begin
     on conflict (user_id, slot) do update set item_id = excluded.item_id;
 end $$;
 
--- Take off headwear or an accessory. Required slots cannot be emptied (error cannot_empty).
+-- Take off knee pads, eyewear or an accessory. Required slots cannot be emptied (error cannot_empty).
 create function public.unequip_slot(p_slot text) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   if auth.uid() is null or not public.is_active_user() then raise exception 'not_authenticated'; end if;
-  if p_slot not in ('headwear', 'accessory') then raise exception 'cannot_empty'; end if;
+  if p_slot not in ('kneepads', 'eyewear', 'accessory') then raise exception 'cannot_empty'; end if;
   delete from public.user_loadout where user_id = auth.uid() and slot = p_slot;
 end $$;
 

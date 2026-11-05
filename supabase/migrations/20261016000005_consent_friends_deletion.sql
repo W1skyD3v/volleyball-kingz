@@ -25,7 +25,7 @@ begin
   perform public.vk_preset(p_preset);
   select * into c from public.courts where id = p_court and is_public;
   if not found then raise exception 'court_not_found'; end if;
-  if p_tier = 5 and not (c.court_type = 'full' and c.full_confirmations >= 1) then raise exception 'five_on_five_needs_full_court'; end if;
+  if p_tier = 5 and not (c.court_type = 'full' and c.fit_confirmations >= 1) then raise exception 'six_on_six_needs_court'; end if;
   foreach u in array everyone loop
     if not exists (select 1 from public.profiles where id = u and deleted_at is null) or not public.can_see_user(u) then raise exception 'bad_roster'; end if;
     if p_lane = 'ranked' and not exists (select 1 from public.check_ins ci where ci.user_id = u and ci.court_id = p_court and ci.expires_at > now()) then
@@ -414,12 +414,12 @@ create policy ratings_select on public.ratings for select to authenticated
   using (user_id = auth.uid() or (kind = 'ranked' and public.can_see_user(user_id)));
 
 -- Public scoreboard: ranked only, adults only (minors never appear on any public surface), no longer provisional.
--- Display scale mirrors packages/core/src/rating.ts displayRating(): mu 25 = 1200, 24 points per mu.
+-- Display scale mirrors packages/core/src/rating.ts displayRating(): mu 25 = 1000, 20 points per mu.
 create function public.leaderboard(p_tier int, p_limit int default 50)
 returns table (rank int, display_name text, rating int, range int, games int, deleted boolean)
 language sql stable security definer set search_path = public, extensions as $$
-  select (row_number() over (order by round(1200 + (r.mu - 25) * 24) desc, r.games desc))::int,
-    p.display_name, round(1200 + (r.mu - 25) * 24)::int, round(r.sigma * 24)::int, r.games, p.deleted_at is not null
+  select (row_number() over (order by round(1000 + (r.mu - 25) * 20) desc, r.games desc))::int,
+    p.display_name, round(1000 + (r.mu - 25) * 20)::int, round(r.sigma * 20)::int, r.games, p.deleted_at is not null
   from public.ratings r join public.profiles p on p.id = r.user_id
   where r.kind = 'ranked' and r.tier = p_tier and not p.is_minor and r.games >= 10 and r.distinct_opponents >= 5
   order by 3 desc, r.games desc
@@ -461,7 +461,7 @@ begin
   return v_row;
 end $$;
 
-create or replace function public.confirm_full_court(p_court uuid) returns int
+create or replace function public.confirm_court_fit(p_court uuid) returns int
 language plpgsql security definer set search_path = public, extensions as $$
 declare n int;
 begin
@@ -469,7 +469,7 @@ begin
   if not exists (select 1 from public.courts where id = p_court and court_type = 'full') then raise exception 'not_full_estimate'; end if;
   insert into public.court_confirmations (court_id, user_id) values (p_court, auth.uid()) on conflict do nothing;
   select count(*) into n from public.court_confirmations where court_id = p_court;
-  update public.courts set full_confirmations = n where id = p_court;
+  update public.courts set fit_confirmations = n where id = p_court;
   return n;
 end $$;
 

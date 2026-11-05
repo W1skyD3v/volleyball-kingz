@@ -2,14 +2,16 @@
  * Cosmetic catalog. Source of truth for items; the SQL seed in supabase/migrations is generated from this
  * (`pnpm catalog:sql`) and a test fails on drift. Cosmetics never change rating, matchmaking or any outcome.
  */
-export const SLOTS = ['jersey', 'shorts', 'shoes', 'headwear', 'accessory', 'ball', 'celebration', 'dunk', 'shot', 'dribble', 'pass'] as const;
+export const SLOTS = ['jersey', 'shorts', 'kneepads', 'shoes', 'eyewear', 'accessory', 'ball', 'celebration', 'serve', 'spike', 'set', 'block', 'dive'] as const;
 export type Slot = (typeof SLOTS)[number];
 /** Slots a player may leave empty. Every other slot always has something equipped. */
-export const OPTIONAL_SLOTS: readonly Slot[] = ['headwear', 'accessory'];
+export const OPTIONAL_SLOTS: readonly Slot[] = ['kneepads', 'eyewear', 'accessory'];
+/** Animation-style slots: how your player moves in replays. */
+export const STYLE_SLOTS: readonly Slot[] = ['serve', 'spike', 'set', 'block', 'dive'];
 
 export const RARITIES = ['common', 'rare', 'epic', 'legendary'] as const;
 export type Rarity = (typeof RARITIES)[number];
-/** Gold prices (docs/design/ECONOMY_AND_RATINGS.md). */
+/** Royalty Bucks prices (internal name: gold). */
 export const RARITY_PRICE: Record<Rarity, number> = { common: 100, rare: 300, epic: 800, legendary: 2000 };
 
 export interface CosmeticItem {
@@ -32,37 +34,42 @@ export const CATALOG: readonly CosmeticItem[] = [
   { id: 'jersey-royal', slot: 'jersey', rarity: 'legendary', name: 'Royal jersey', variant: 'royal', premiumOnly: true },
   { id: 'shorts-plain', slot: 'shorts', rarity: 'common', name: 'Plain shorts', variant: 'plain', starter: true },
   { id: 'shorts-stripe', slot: 'shorts', rarity: 'common', name: 'Side stripe shorts', variant: 'stripe' },
-  { id: 'shoes-low', slot: 'shoes', rarity: 'common', name: 'Low tops', variant: 'low', starter: true },
-  { id: 'shoes-high', slot: 'shoes', rarity: 'common', name: 'High tops', variant: 'high' },
-  { id: 'head-headband', slot: 'headwear', rarity: 'common', name: 'Headband', variant: 'headband' },
-  { id: 'head-cap', slot: 'headwear', rarity: 'rare', name: 'Snapback cap', variant: 'cap' },
-  { id: 'head-crown', slot: 'headwear', rarity: 'legendary', name: 'Kingz crown', variant: 'crown' },
-  { id: 'acc-wristbands', slot: 'accessory', rarity: 'common', name: 'Wristbands', variant: 'wristbands', starter: true },
-  { id: 'acc-shades', slot: 'accessory', rarity: 'rare', name: 'Court shades', variant: 'shades' },
-  { id: 'acc-chain', slot: 'accessory', rarity: 'epic', name: 'Gold chain', variant: 'chain' },
+  { id: 'shorts-board', slot: 'shorts', rarity: 'rare', name: 'Beach board shorts', variant: 'board' },
+  { id: 'knee-basic', slot: 'kneepads', rarity: 'common', name: 'Knee pads', variant: 'basic', starter: true },
+  { id: 'knee-pro', slot: 'kneepads', rarity: 'rare', name: 'Pro knee pads', variant: 'pro' },
+  { id: 'knee-neon', slot: 'kneepads', rarity: 'epic', name: 'Neon knee pads', variant: 'neon' },
+  { id: 'shoes-low', slot: 'shoes', rarity: 'common', name: 'Indoor low shoes', variant: 'low', starter: true },
+  { id: 'shoes-high', slot: 'shoes', rarity: 'common', name: 'Indoor high shoes', variant: 'high' },
+  { id: 'eye-visor', slot: 'eyewear', rarity: 'common', name: 'Sun visor', variant: 'visor' },
+  { id: 'eye-shades', slot: 'eyewear', rarity: 'rare', name: 'Beach shades', variant: 'shades' },
+  { id: 'eye-mirror', slot: 'eyewear', rarity: 'epic', name: 'Mirror shades', variant: 'mirror' },
+  { id: 'acc-sleeves', slot: 'accessory', rarity: 'common', name: 'Arm sleeves', variant: 'sleeves', starter: true },
+  { id: 'acc-headband', slot: 'accessory', rarity: 'common', name: 'Headband', variant: 'headband' },
+  { id: 'acc-crown', slot: 'accessory', rarity: 'legendary', name: 'Kingz crown', variant: 'crown' },
   { id: 'ball-classic', slot: 'ball', rarity: 'common', name: 'Classic ball', variant: 'classic', starter: true },
+  { id: 'ball-beach', slot: 'ball', rarity: 'rare', name: 'Beach ball skin', variant: 'beach' },
   { id: 'ball-neon', slot: 'ball', rarity: 'rare', name: 'Neon ball', variant: 'neon' },
   { id: 'ball-gold', slot: 'ball', rarity: 'epic', name: 'Gold ball', variant: 'gold' },
   { id: 'cel-fist', slot: 'celebration', rarity: 'common', name: 'Fist pump', variant: 'fist', starter: true },
   { id: 'cel-flex', slot: 'celebration', rarity: 'rare', name: 'Flex', variant: 'flex' },
   { id: 'cel-shimmy', slot: 'celebration', rarity: 'epic', name: 'Shimmy', variant: 'shimmy' },
   // Animation styles: how your player moves in replays.
-  { id: 'dunk-two-hand', slot: 'dunk', rarity: 'common', name: 'Two-hand slam', variant: 'two-hand', starter: true },
-  { id: 'dunk-tomahawk', slot: 'dunk', rarity: 'rare', name: 'Tomahawk', variant: 'tomahawk' },
-  { id: 'dunk-windmill', slot: 'dunk', rarity: 'epic', name: 'Windmill', variant: 'windmill' },
-  { id: 'dunk-spin', slot: 'dunk', rarity: 'legendary', name: '360 spin dunk', variant: 'spin' },
-  { id: 'shot-set', slot: 'shot', rarity: 'common', name: 'Set shot', variant: 'set', starter: true },
-  { id: 'shot-fadeaway', slot: 'shot', rarity: 'rare', name: 'Fadeaway', variant: 'fadeaway' },
-  { id: 'shot-one-leg', slot: 'shot', rarity: 'rare', name: 'One-leg jumper', variant: 'one-leg' },
-  { id: 'shot-stepback', slot: 'shot', rarity: 'epic', name: 'Step-back three', variant: 'stepback' },
-  { id: 'dribble-standard', slot: 'dribble', rarity: 'common', name: 'Standard dribble', variant: 'standard', starter: true },
-  { id: 'dribble-crossover', slot: 'dribble', rarity: 'common', name: 'Crossover', variant: 'crossover' },
-  { id: 'dribble-behind', slot: 'dribble', rarity: 'rare', name: 'Behind the back', variant: 'behind' },
-  { id: 'dribble-legs', slot: 'dribble', rarity: 'epic', name: 'Between the legs', variant: 'legs' },
-  { id: 'pass-chest', slot: 'pass', rarity: 'common', name: 'Chest pass', variant: 'chest', starter: true },
-  { id: 'pass-bounce', slot: 'pass', rarity: 'common', name: 'Bounce pass', variant: 'bounce' },
-  { id: 'pass-behind', slot: 'pass', rarity: 'rare', name: 'Behind-the-back pass', variant: 'behind' },
-  { id: 'pass-nolook', slot: 'pass', rarity: 'epic', name: 'No-look pass', variant: 'nolook' },
+  { id: 'serve-float', slot: 'serve', rarity: 'common', name: 'Float serve', variant: 'float', starter: true },
+  { id: 'serve-jump', slot: 'serve', rarity: 'rare', name: 'Jump serve', variant: 'jump' },
+  { id: 'serve-power', slot: 'serve', rarity: 'epic', name: 'Power jump serve', variant: 'power' },
+  { id: 'spike-standard', slot: 'spike', rarity: 'common', name: 'Standard spike', variant: 'standard', starter: true },
+  { id: 'spike-cut', slot: 'spike', rarity: 'rare', name: 'Cut shot', variant: 'cut' },
+  { id: 'spike-power', slot: 'spike', rarity: 'epic', name: 'Power swing', variant: 'power' },
+  { id: 'spike-spin', slot: 'spike', rarity: 'legendary', name: '360 spike', variant: 'spin' },
+  { id: 'set-standard', slot: 'set', rarity: 'common', name: 'Overhead set', variant: 'standard', starter: true },
+  { id: 'set-jump', slot: 'set', rarity: 'rare', name: 'Jump set', variant: 'jump' },
+  { id: 'set-back', slot: 'set', rarity: 'epic', name: 'Back set', variant: 'back' },
+  { id: 'block-standard', slot: 'block', rarity: 'common', name: 'Two-hand block', variant: 'standard', starter: true },
+  { id: 'block-swing', slot: 'block', rarity: 'rare', name: 'Swing block', variant: 'swing' },
+  { id: 'block-stuff', slot: 'block', rarity: 'epic', name: 'Stuff block', variant: 'stuff' },
+  { id: 'dive-standard', slot: 'dive', rarity: 'common', name: 'Dive save', variant: 'standard', starter: true },
+  { id: 'dive-roll', slot: 'dive', rarity: 'rare', name: 'Dive and roll', variant: 'roll' },
+  { id: 'dive-pancake', slot: 'dive', rarity: 'epic', name: 'Pancake save', variant: 'pancake' },
 ];
 
 export const itemById = (id: string): CosmeticItem | undefined => CATALOG.find((i) => i.id === id);

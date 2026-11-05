@@ -28,7 +28,7 @@ export interface CourtView {
   courtType: CourtType;
   typeSource: 'geometry' | 'bounds' | 'tag' | 'none';
   headcount: number;
-  fullConfirmations: number;
+  fitConfirmations: number;
   /** OSM pitches merged into this site. */
   memberCount?: number;
   distanceM?: number;
@@ -169,7 +169,7 @@ export interface Backend {
   listCourts(near?: LatLng): Promise<CourtView[]>;
   checkIn(courtId: string, fix: Fix): Promise<CheckInResult>;
   checkOut(): Promise<void>;
-  confirmFullCourt(courtId: string): Promise<void>;
+  confirmCourtFit(courtId: string): Promise<void>;
   myCheckInCourtId(): Promise<string | null>;
 
   listRuns(): Promise<RunView[]>;

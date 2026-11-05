@@ -65,7 +65,7 @@ beforeAll(async () => {
     await new Promise((r) => setTimeout(r, 200));
   }
   for (const n of [1, 2, 3, 4, 9]) await pool.query('insert into auth.users (id) values ($1) on conflict do nothing', [id(n)]);
-  await pool.query(`insert into public.courts (id, osm_type, osm_id, name, lat, lng, court_type, full_confirmations) values ($1,'way',1,'Pershing',$2,$3,'full',1) on conflict do nothing`, [COURT, LA.lat, LA.lng]);
+  await pool.query(`insert into public.courts (id, osm_type, osm_id, name, lat, lng, court_type, fit_confirmations) values ($1,'way',1,'Pershing',$2,$3,'full',1) on conflict do nothing`, [COURT, LA.lat, LA.lng]);
 }, 30_000);
 
 afterAll(async () => {
@@ -99,7 +99,7 @@ describe('adapter against real PostgREST + RLS + RPCs', () => {
   });
 
   it('court confirmation counts once per player; check-out frees the headcount', async () => {
-    await adult1().confirmFullCourt(COURT);
+    await adult1().confirmCourtFit(COURT);
     await adult1().checkOut();
     expect(await adult1().myCheckInCourtId()).toBeNull();
     await adult1().checkIn(COURT, LA);

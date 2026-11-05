@@ -69,7 +69,7 @@ describe('memory backend', () => {
     await expect(b.createGame(g)).rejects.toThrow('ranked_requires_check_in');
     await b.checkIn('c1', fix);
     await expect(b.createGame(g)).resolves.toBeDefined();
-    await expect(b.createGame({ ...g, courtId: 'c3', lane: 'casual', tier: 5 })).rejects.toThrow('five_on_five_needs_full_court');
+    await expect(b.createGame({ ...g, courtId: 'c3', lane: 'casual', tier: 5 })).rejects.toThrow('six_on_six_needs_court');
     await b.checkIn('c1', fix);
     await expect(b.createGame({ ...g, lane: 'casual', tier: 5 })).resolves.toBeDefined(); // c1 is a confirmed full court
   });

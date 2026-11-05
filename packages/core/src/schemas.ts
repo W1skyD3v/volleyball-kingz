@@ -1,12 +1,15 @@
 import { z } from 'zod';
-import { SCORING_MODES, TARGETS, TIERS, WIN_BYS } from './presets.js';
+import { BEST_OFS, COURT_TYPES, TARGETS, TIERS, WIN_BYS } from './presets.js';
+import { POINT_TAGS } from './scoring.js';
 
 export const LaneSchema = z.enum(['casual', 'private', 'ranked']);
-export const CourtTypeSchema = z.enum(['full', 'half', 'unknown']);
-export const TierSchema = z.union(TIERS.map((t) => z.literal(t)) as unknown as [z.ZodLiteral<1>, z.ZodLiteral<2>, ...z.ZodLiteral<number>[]]);
-export const TargetSchema = z.union(TARGETS.map((t) => z.literal(t)) as unknown as [z.ZodLiteral<7>, z.ZodLiteral<10>, ...z.ZodLiteral<number>[]]);
-export const WinBySchema = z.union(WIN_BYS.map((t) => z.literal(t)) as unknown as [z.ZodLiteral<1>, z.ZodLiteral<2>]);
-export const ScoringModeSchema = z.enum(SCORING_MODES);
+export const CourtTypeSchema = z.enum(COURT_TYPES);
+const literalUnion = <T extends number>(xs: readonly T[]) => z.union(xs.map((x) => z.literal(x)) as unknown as [z.ZodLiteral<T>, z.ZodLiteral<T>, ...z.ZodLiteral<T>[]]);
+export const TierSchema = literalUnion(TIERS);
+export const TargetSchema = literalUnion(TARGETS);
+export const WinBySchema = literalUnion(WIN_BYS);
+export const BestOfSchema = literalUnion(BEST_OFS);
+export const PointTagSchema = z.enum(POINT_TAGS);
 
 export const CourtSchema = z.object({
   id: z.string(),
@@ -16,7 +19,7 @@ export const CourtSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   courtType: CourtTypeSchema,
-  hoops: z.number().int().nullable(),
+  nets: z.number().int().nullable(),
   areaM2: z.number().nullable(),
   access: z.string().nullable(),
 });

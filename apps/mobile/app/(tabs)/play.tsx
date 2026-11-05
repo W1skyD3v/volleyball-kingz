@@ -34,7 +34,7 @@ export default function Play() {
 
   const ERR: Record<string, string> = {
     ranked_requires_check_in: 'Ranked needs a live check-in at this court. Check in on the Courts tab.',
-    five_on_five_needs_full_court: '5v5 is full court only. This court is not a full court.',
+    six_on_six_needs_court: '5v5 is full court only. This court is not a full court.',
     full_court_unconfirmed: '5v5 needs a full court that a player has confirmed. Confirm it after checking in.',
   };
 

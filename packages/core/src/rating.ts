@@ -3,7 +3,9 @@ import type { Tier } from './presets.js';
 
 export type Lane = 'casual' | 'private' | 'ranked';
 
-export const ELO_START = 1200;
+/** Display name of our rating. Own scale (not anyone else's): mu 25 shows as 1000. */
+export const RATING_NAME = 'Net Rating';
+export const ELO_START = 1000;
 export const PROVISIONAL_MIN_GAMES = 10;
 export const PROVISIONAL_MIN_OPPONENTS = 5;
 
@@ -73,7 +75,7 @@ export interface TierSkill extends SkillRating {
 }
 
 /**
- * Cold start: a player's first game in a new tier starts from what the player's other tiers say, not from a stranger's 1200.
+ * Cold start: a player's first game in a new tier starts from what the player's other tiers say, not from a stranger's 1000.
  * mu = games-weighted mean (weight = min(games, 30)); sigma = 1.5 x the weighted mean sigma, kept between 5 and the default.
  * Mirrored by public.vk_prior_from in SQL (fuzz-tested). With no history: the default rating.
  */
@@ -95,13 +97,13 @@ export function overallRating(tiers: TierSkill[]): { rating: number; tiers: numb
   return { rating: displayRating(p).rating, tiers: tiers.filter((t) => t.games > 0).length };
 }
 
-/** Display scale: mu 25 -> 1200. 1 mu = 24 points; range = +/- sigma on the same scale. */
-const DISPLAY_PER_MU = 24;
+/** Display scale (Net Rating): mu 25 -> 1000. 1 mu = 20 points; range = +/- sigma on the same scale. */
+export const DISPLAY_PER_MU = 20;
 
 export interface DisplayRating {
   rating: number;
   range: number;
-  label: string; // "1200 +/- 200"
+  label: string; // "1000 +/- 167"
 }
 
 export function displayRating(s: SkillRating): DisplayRating {

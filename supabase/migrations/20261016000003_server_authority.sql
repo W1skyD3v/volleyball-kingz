@@ -91,7 +91,7 @@ begin
   perform public.vk_preset(p_preset);
   select * into c from public.courts where id = p_court and is_public;
   if not found then raise exception 'court_not_found'; end if;
-  if p_tier = 5 and not (c.court_type = 'full' and c.full_confirmations >= 1) then raise exception 'five_on_five_needs_full_court'; end if;
+  if p_tier = 5 and not (c.court_type = 'full' and c.fit_confirmations >= 1) then raise exception 'six_on_six_needs_court'; end if;
   foreach u in array everyone loop
     if not exists (select 1 from public.profiles where id = u) or not public.can_see_user(u) then raise exception 'bad_roster'; end if;
     if p_lane = 'ranked' and not exists (select 1 from public.check_ins ci where ci.user_id = u and ci.court_id = p_court and ci.expires_at > now()) then
@@ -265,7 +265,7 @@ language sql security definer set search_path = public, extensions as $$
   update public.check_ins set expires_at = now() where user_id = auth.uid() and expires_at > now()
 $$;
 
-create function public.confirm_full_court(p_court uuid) returns int
+create function public.confirm_court_fit(p_court uuid) returns int
 language plpgsql security definer set search_path = public, extensions as $$
 declare n int;
 begin
@@ -273,7 +273,7 @@ begin
   if not exists (select 1 from public.courts where id = p_court and court_type = 'full') then raise exception 'not_full_estimate'; end if;
   insert into public.court_confirmations (court_id, user_id) values (p_court, auth.uid()) on conflict do nothing;
   select count(*) into n from public.court_confirmations where court_id = p_court;
-  update public.courts set full_confirmations = n where id = p_court;
+  update public.courts set fit_confirmations = n where id = p_court;
   return n;
 end $$;
 
@@ -312,9 +312,9 @@ revoke execute on function public.game_apply_event(uuid, jsonb) from public, ano
 revoke execute on function public.rate_game(uuid, int) from public, anon;
 revoke execute on function public.rate_player(uuid, uuid, int) from public, anon;
 revoke execute on function public.check_out() from public, anon;
-revoke execute on function public.confirm_full_court(uuid) from public, anon;
+revoke execute on function public.confirm_court_fit(uuid) from public, anon;
 grant execute on function public.create_game(uuid, text, int, text, text, uuid[], uuid[]), public.game_apply_event(uuid, jsonb),
-  public.rate_game(uuid, int), public.rate_player(uuid, uuid, int), public.check_out(), public.confirm_full_court(uuid) to authenticated;
+  public.rate_game(uuid, int), public.rate_player(uuid, uuid, int), public.check_out(), public.confirm_court_fit(uuid) to authenticated;
 
 -- Realtime for live scoring (no-op on plain Postgres).
 do $$ begin

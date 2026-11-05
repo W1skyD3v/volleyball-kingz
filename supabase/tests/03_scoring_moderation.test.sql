@@ -101,10 +101,10 @@ select lives_ok($$select public.check_out()$$, 'check out');
 select is((select headcount from public.court_headcounts() where court_id = '10000000-0000-0000-0000-000000000001'), 1, 'headcount drops after check-out');
 
 -- confirm full court requires live check-in, counts once per user
-select throws_ok($$select public.confirm_full_court('10000000-0000-0000-0000-000000000001')$$, 'P0001', 'not_checked_in', 'must be checked in');
+select throws_ok($$select public.confirm_court_fit('10000000-0000-0000-0000-000000000001')$$, 'P0001', 'not_checked_in', 'must be checked in');
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a2', true);
-select is(public.confirm_full_court('10000000-0000-0000-0000-000000000001'), 1, 'first confirmation');
-select is(public.confirm_full_court('10000000-0000-0000-0000-000000000001'), 1, 'same user cannot double count');
+select is(public.confirm_court_fit('10000000-0000-0000-0000-000000000001'), 1, 'first confirmation');
+select is(public.confirm_court_fit('10000000-0000-0000-0000-000000000001'), 1, 'same user cannot double count');
 
 -- moderation: 3 distinct reporters hide a run; safety escalation hides at once
 reset role;

@@ -15,10 +15,10 @@ interface DemoCourt extends CourtView {
 
 /** Demo courts (names invented; positions are real LA spots). Real data comes from the Supabase courts table. */
 const DEMO_COURTS: DemoCourt[] = [
-  { id: 'c1', name: 'Pershing Square (demo)', lat: 34.0488, lng: -118.2518, courtType: 'full', typeSource: 'geometry', headcount: 0, fullConfirmations: 1, access: 'public' },
-  { id: 'c2', name: 'Venice Beach Courts (demo)', lat: 33.9867, lng: -118.4731, courtType: 'full', typeSource: 'tag', headcount: 0, fullConfirmations: 0, access: 'public' },
-  { id: 'c3', name: 'Echo Park half court (demo)', lat: 34.0782, lng: -118.2606, courtType: 'half', typeSource: 'tag', headcount: 0, fullConfirmations: 0, access: 'public' },
-  { id: 'c4', name: 'Unmapped park court (demo)', lat: 34.0195, lng: -118.4912, courtType: 'unknown', typeSource: 'none', headcount: 0, fullConfirmations: 0, access: 'public' },
+  { id: 'c1', name: 'Pershing Square (demo)', lat: 34.0488, lng: -118.2518, courtType: 'full', typeSource: 'geometry', headcount: 0, fitConfirmations: 1, access: 'public' },
+  { id: 'c2', name: 'Venice Beach Courts (demo)', lat: 33.9867, lng: -118.4731, courtType: 'full', typeSource: 'tag', headcount: 0, fitConfirmations: 0, access: 'public' },
+  { id: 'c3', name: 'Echo Park half court (demo)', lat: 34.0782, lng: -118.2606, courtType: 'half', typeSource: 'tag', headcount: 0, fitConfirmations: 0, access: 'public' },
+  { id: 'c4', name: 'Unmapped park court (demo)', lat: 34.0195, lng: -118.4912, courtType: 'unknown', typeSource: 'none', headcount: 0, fitConfirmations: 0, access: 'public' },
 ];
 
 const OTHERS = [
@@ -221,9 +221,9 @@ export function createMemoryBackend(opts: MemoryOptions = {}): Backend {
       const i = checkIns.findIndex((c) => c.userId === me?.id);
       if (i >= 0) checkIns.splice(i, 1);
     },
-    async confirmFullCourt(courtId) {
+    async confirmCourtFit(courtId) {
       const c = courts.find((x) => x.id === courtId);
-      if (c && myCheckIn()?.courtId === courtId) c.fullConfirmations += 1;
+      if (c && myCheckIn()?.courtId === courtId) c.fitConfirmations += 1;
     },
     async myCheckInCourtId() {
       return myCheckIn()?.courtId ?? null;
@@ -266,7 +266,7 @@ export function createMemoryBackend(opts: MemoryOptions = {}): Backend {
       if (!court) throw new Error('court_not_found');
       if (g.lane === 'ranked' && myCheckIn()?.courtId !== g.courtId) throw new Error('ranked_requires_check_in');
       if (g.tier === 5 && !fullCourtConfirmed(court)) {
-        throw new Error(canPlayTierOnCourt(5, court.courtType) ? 'full_court_unconfirmed' : 'five_on_five_needs_full_court');
+        throw new Error(canPlayTierOnCourt(5, court.courtType) ? 'full_court_unconfirmed' : 'six_on_six_needs_court');
       }
       getPreset(g.presetId);
       const mates = Array.from({ length: g.tier - 1 }, (_, i) => seat(`bot-a${i}`, `Mate ${i + 1}`));

@@ -64,7 +64,7 @@ export function createSupabaseBackend(client: SupabaseClient, opts: SupabaseOpti
     courtType: c.court_type as CourtView['courtType'],
     typeSource: c.type_source as CourtView['typeSource'],
     headcount: (c.headcount as number | undefined) ?? 0,
-    fullConfirmations: c.full_confirmations as number,
+    fitConfirmations: c.fit_confirmations as number,
     memberCount: c.member_count as number | undefined,
     distanceM: c.distance_m as number | undefined,
   });
@@ -182,8 +182,8 @@ export function createSupabaseBackend(client: SupabaseClient, opts: SupabaseOpti
     async checkOut() {
       fail((await client.rpc('check_out')).error);
     },
-    async confirmFullCourt(courtId) {
-      fail((await client.rpc('confirm_full_court', { p_court: courtId })).error);
+    async confirmCourtFit(courtId) {
+      fail((await client.rpc('confirm_court_fit', { p_court: courtId })).error);
     },
     async myCheckInCourtId() {
       const r = rows(await client.from('check_ins').select('court_id').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1));

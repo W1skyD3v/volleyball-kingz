@@ -1,35 +1,74 @@
-export const TARGETS = [7, 10, 11, 21] as const;
+/**
+ * Volleyball scoring presets. Rally scoring always: every rally gives one point to its winner.
+ * Spec: docs/SPORT_DESIGN.md section 2. Mirrored in SQL by vk_preset / vk_set_winner / vk_set_valid_final.
+ */
+export const TARGETS = [11, 15, 21, 25] as const;
 export type Target = (typeof TARGETS)[number];
-export const SCORING_MODES = ['ones', 'onesAndTwos'] as const;
-export type ScoringMode = (typeof SCORING_MODES)[number];
 export const WIN_BYS = [1, 2] as const;
 export type WinBy = (typeof WIN_BYS)[number];
-export const TIERS = [1, 2, 3, 4, 5] as const;
+export const BEST_OFS = [1, 3, 5] as const;
+export type BestOf = (typeof BEST_OFS)[number];
+/** Players per side: beach 2v2, 4v4, indoor 6v6. Internally called `tier` (kept from the shared engine). */
+export const TIERS = [2, 4, 6] as const;
 export type Tier = (typeof TIERS)[number];
-export type CourtType = 'full' | 'half' | 'unknown';
+export const COURT_TYPES = ['beach', 'indoor', 'grass', 'unknown'] as const;
+export type CourtType = (typeof COURT_TYPES)[number];
+
+/** The deciding set is played to this many points (or the match target, if lower). */
+export const DECIDING_TARGET = 15;
+/** A hard cap sits this many points above the set's target. */
+export const CAP_ABOVE_TARGET = 5;
+/** Beach side switches: every 7 points, every 5 in the deciding set. */
+export const SWITCH_EVERY = 7;
+export const SWITCH_EVERY_DECIDING = 5;
+export const TIMEOUTS_PER_SET = 2;
+/** Pickup time cap in minutes (server time). Only single-set presets can have one. */
+export const PICKUP_TIME_CAP_MIN = 20;
 
 export interface ScoringPreset {
   id: string;
   target: Target;
-  scoring: ScoringMode;
   winBy: WinBy;
+  /** Hard cap (target + 5): the first side to reach it wins even by one point. Only with win by 2. */
+  cap: boolean;
+  bestOf: BestOf;
+  /** Time cap in minutes from kick-off (server time), or null. At the cap the higher score wins; a tie plays to the next point. */
+  timeCapMin: number | null;
   label: string;
 }
 
-export function presetId(target: Target, scoring: ScoringMode, winBy: WinBy): string {
-  return `${target}-${scoring === 'ones' ? '1s' : '1s2s'}-w${winBy}`;
+/** The rule one particular set is played under. */
+export interface SetRule {
+  target: number;
+  winBy: WinBy;
+  /** Absolute cap score, or null. */
+  capPoints: number | null;
+  deciding: boolean;
 }
 
-/** Full matrix: 4 targets x 2 scoring modes x 2 win-by rules = 16 presets. */
+export function presetId(target: Target, winBy: WinBy, cap: boolean, bestOf: BestOf, timeCapMin: number | null = null): string {
+  return `${target}-w${winBy}${cap ? 'c' : ''}-bo${bestOf}${timeCapMin !== null ? `-t${timeCapMin}` : ''}`;
+}
+
+const label = (target: number, winBy: WinBy, cap: boolean, bestOf: BestOf, timeCapMin: number | null): string => {
+  const win = winBy === 1 ? 'win by 1' : cap ? `win by 2, cap ${target + CAP_ABOVE_TARGET}` : 'win by 2';
+  const len = bestOf === 1 ? 'one set' : `best of ${bestOf}`;
+  return `To ${target}, ${win}, ${len}${timeCapMin !== null ? `, ${timeCapMin} min time cap` : ''}`;
+};
+
+/**
+ * Full matrix: 4 targets x (win by 1 | win by 2 | win by 2 with cap) x 3 match lengths = 36 presets,
+ * plus each single-set preset with the 20 minute pickup time cap = 12 more (48).
+ */
 export const PRESETS: readonly ScoringPreset[] = TARGETS.flatMap((target) =>
-  SCORING_MODES.flatMap((scoring) =>
-    WIN_BYS.map((winBy) => ({
-      id: presetId(target, scoring, winBy),
-      target,
-      scoring,
-      winBy,
-      label: `To ${target}, ${scoring === 'ones' ? 'ones only' : 'ones and twos'}, win by ${winBy}`,
-    })),
+  ([[1, false], [2, false], [2, true]] as const).flatMap(([winBy, cap]) =>
+    BEST_OFS.flatMap((bestOf) =>
+      (bestOf === 1 ? [null, PICKUP_TIME_CAP_MIN] : [null]).map((t) => ({
+        id: presetId(target, winBy, cap, bestOf, t),
+        target, winBy, cap, bestOf, timeCapMin: t,
+        label: label(target, winBy, cap, bestOf, t),
+      })),
+    ),
   ),
 );
 
@@ -39,36 +78,70 @@ export function getPreset(id: string): ScoringPreset {
   return p;
 }
 
-/** Point values a side may claim in one scoring event. */
-export function allowedPoints(p: ScoringPreset): readonly number[] {
-  return p.scoring === 'ones' ? [1] : [1, 2];
+/** Pickup default: one set to 15, win by 2, 20 minute time cap (server time). */
+export const PICKUP_PRESET_ID = presetId(15, 2, false, 1, PICKUP_TIME_CAP_MIN);
+/** Casual 11-point single set, win by 2, no time cap. */
+export const CASUAL_PRESET_ID = presetId(11, 2, false, 1);
+/**
+ * Official presets. Beach 2v2: best of 3, sets to 21, deciding set to 15, win by 2, no cap, sides switch every 7 (5 in the deciding set).
+ * Indoor 6v6: best of 5, sets to 25, deciding fifth to 15, win by 2, sides switch only between sets. 4v4 uses the beach match shape.
+ */
+export const officialPresetId = (tier: Tier): string => (tier === 6 ? presetId(25, 2, false, 5) : presetId(21, 2, false, 3));
+
+/** Set wins needed to take the match. */
+export const setsToWin = (p: ScoringPreset): number => Math.ceil(p.bestOf / 2);
+
+/** The deciding set is the last possible set of a multi-set match (reachable only at 1-1 or 2-2). */
+export const isDecidingSet = (p: ScoringPreset, setNo: number): boolean => p.bestOf > 1 && setNo === p.bestOf;
+
+export function setRuleFor(p: ScoringPreset, setNo: number): SetRule {
+  const deciding = isDecidingSet(p, setNo);
+  const target = deciding ? Math.min(DECIDING_TARGET, p.target) : p.target;
+  return { target, winBy: p.winBy, capPoints: p.cap ? target + CAP_ABOVE_TARGET : null, deciding };
 }
 
-/** Returns 'A' | 'B' when the game is won under the preset, else null. */
-export function winner(a: number, b: number, p: ScoringPreset): 'A' | 'B' | null {
-  if (a >= p.target && a - b >= p.winBy) return 'A';
-  if (b >= p.target && b - a >= p.winBy) return 'B';
+/** 'A' | 'B' when the set is won at (a, b) under the rule, else null. */
+export function setWinner(a: number, b: number, r: SetRule): 'A' | 'B' | null {
+  const side = (hi: number, lo: number): boolean => (hi >= r.target && hi - lo >= r.winBy) || (r.capPoints !== null && hi >= r.capPoints && hi > lo);
+  if (side(a, b)) return 'A';
+  if (side(b, a)) return 'B';
   return null;
 }
 
-/** True if (a, b) is a reachable final score: the last scoring event must have ended a not-yet-won game. */
-export function isValidFinalScore(a: number, b: number, p: ScoringPreset): boolean {
+/**
+ * True if the set can be in progress at (a, b): not won, and reachable without someone having won earlier.
+ * (Under win by 1 a tie at the target, and under a cap any score at the cap, can never be on the board.)
+ */
+export function isOpenScore(a: number, b: number, r: SetRule): boolean {
   if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return false;
-  const w = winner(a, b, p);
-  if (!w) return false;
-  const [hi, lo] = w === 'A' ? [a, b] : [b, a];
-  return allowedPoints(p).some((pts) => hi - pts >= 0 && winner(hi - pts, lo, p) === null);
+  if (setWinner(a, b, r) !== null) return false;
+  const hi = Math.max(a, b);
+  if (r.winBy === 1 && hi >= r.target) return false; // an unwon score at or past the target can only be a tie, which cannot be reached
+  if (r.capPoints !== null && hi >= r.capPoints) return false;
+  return true;
 }
 
-export function playersPerSide(tier: Tier): number {
-  return tier;
+/** True if (a, b) is a reachable final set score: won at (a, b), one point earlier it was still open. */
+export function isValidSetFinal(a: number, b: number, r: SetRule): boolean {
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return false;
+  const w = setWinner(a, b, r);
+  if (!w) return false;
+  return w === 'A' ? a - 1 >= 0 && isOpenScore(a - 1, b, r) : b - 1 >= 0 && isOpenScore(a, b - 1, r);
 }
+
+export const playersPerSide = (tier: Tier): number => tier;
 
 export function tierLabel(tier: Tier): string {
-  return `${tier}v${tier}`;
+  return tier === 2 ? 'Beach 2v2' : tier === 4 ? '4v4' : 'Indoor 6v6';
 }
 
-/** 5v5 is full court only. Unknown courts must be confirmed full before 5v5. */
-export function canPlayTierOnCourt(tier: Tier, court: CourtType): boolean {
-  return tier < 5 || court === 'full';
+/** Beach 2v2 switches ends during a set; every format switches between sets. */
+export const switchesDuringSet = (tier: number): boolean => tier === 2;
+
+/**
+ * 2v2 and 4v4 can be played on any court. 6v6 needs an indoor or grass court (a beach court is 8 x 16 m, too small).
+ * An unknown court cannot host 6v6 until someone confirms what it is.
+ */
+export function canPlayFormatOnCourt(tier: Tier, court: CourtType): boolean {
+  return tier < 6 || court === 'indoor' || court === 'grass';
 }

@@ -69,7 +69,7 @@ export default function Courts() {
               <Dim>
                 {c.memberCount && c.memberCount > 1 ? `${c.memberCount} hoops/courts · ` : ''}
                 {TYPE_LABEL[c.courtType]}
-                {c.typeSource === 'tag' && c.fullConfirmations === 0 ? ' (estimate)' : ''}
+                {c.typeSource === 'tag' && c.fitConfirmations === 0 ? ' (estimate)' : ''}
                 {fix ? ` · ${Math.round(c.distanceM ?? haversineMeters(fix, c))} m away` : ''}
               </Dim>
             </View>
@@ -79,13 +79,13 @@ export default function Courts() {
           <Row>
             <Button title={mine === c.id ? 'Re-check in' : 'Check in'} onPress={() => checkIn(c)} testID={`checkin-${c.id}`} />
             {mine === c.id && <Button title="I'm leaving" kind="ghost" onPress={async () => { await backend.checkOut(); setMsg((m) => ({ ...m, [c.id]: 'Checked out.' })); await load(); }} testID={`checkout-${c.id}`} />}
-            {mine === c.id && c.courtType === 'full' && c.fullConfirmations === 0 && (
-              <Button title="Confirm full court" kind="ghost" onPress={async () => { await backend.confirmFullCourt(c.id); await load(); }} testID={`confirmfull-${c.id}`} />
+            {mine === c.id && c.courtType === 'full' && c.fitConfirmations === 0 && (
+              <Button title="Confirm full court" kind="ghost" onPress={async () => { await backend.confirmCourtFit(c.id); await load(); }} testID={`confirmfull-${c.id}`} />
             )}
           </Row>
           {msg[c.id] && <Dim>{msg[c.id]}</Dim>}
           <Button title="Report a problem with this court" kind="ghost" testID={`report-court-${c.id}`} onPress={() => router.push({ pathname: '/report', params: { targetType: 'court', targetId: c.id } })} />
-          <Dim>5v5 {c.courtType === 'full' && c.fullConfirmations > 0 ? 'allowed' : 'locked until a full court is confirmed'} · up to {tierLabel(4)} otherwise</Dim>
+          <Dim>5v5 {c.courtType === 'full' && c.fitConfirmations > 0 ? 'allowed' : 'locked until a full court is confirmed'} · up to {tierLabel(4)} otherwise</Dim>
         </Card>
       ))}
     </Screen>

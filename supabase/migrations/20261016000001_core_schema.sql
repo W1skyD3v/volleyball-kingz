@@ -48,13 +48,13 @@ create table public.courts (
   lat double precision not null,
   lng double precision not null,
   geog geography(point, 4326) generated always as (st_setsrid(st_makepoint(lng, lat), 4326)::geography) stored,
-  court_type text not null default 'unknown' check (court_type in ('full', 'half', 'unknown')),
+  court_type text not null default 'unknown' check (court_type in ('beach', 'indoor', 'grass', 'unknown')),
   type_source text not null default 'none' check (type_source in ('geometry', 'bounds', 'tag', 'none')),
-  hoops int,
+  nets int,
   area_m2 int,
   access text,
   is_public boolean generated always as (coalesce(access, 'yes') not in ('private', 'no', 'customers', 'permit')) stored,
-  full_confirmations int not null default 0,
+  fit_confirmations int not null default 0,
   unique (osm_type, osm_id)
 );
 create index courts_geog_idx on public.courts using gist (geog);
@@ -134,7 +134,7 @@ create table public.runs (
   court_id uuid not null references public.courts (id) on delete cascade,
   host_id uuid not null references public.profiles (id) on delete cascade,
   starts_at timestamptz not null,
-  tier int not null check (tier between 1 and 5),
+  tier int not null check (tier in (2, 4, 6)),
   lane text not null check (lane in ('casual', 'private', 'ranked')),
   preset_id text not null,
   note text check (char_length(note) <= 200),
@@ -154,7 +154,7 @@ create table public.games (
   court_id uuid references public.courts (id) on delete set null,
   run_id uuid references public.runs (id) on delete set null,
   lane text not null check (lane in ('casual', 'private', 'ranked')),
-  tier int not null check (tier between 1 and 5),
+  tier int not null check (tier in (2, 4, 6)),
   preset_id text not null,
   mode text not null check (mode in ('live', 'quick')),
   status text not null default 'active' check (status in ('active', 'awaiting_final', 'disputed', 'final', 'voided')),
@@ -201,11 +201,11 @@ $$;
 -- ---------------------------------------------------------------- ratings (server-written only)
 create table public.ratings (
   user_id uuid not null references public.profiles (id) on delete cascade,
-  tier int not null check (tier between 1 and 5),
+  tier int not null check (tier in (2, 4, 6)),
   kind text not null check (kind in ('ranked', 'casual_elo', 'private_elo')),
   mu double precision not null default 25,
   sigma double precision not null default 8.333333333333334,
-  elo double precision not null default 1200,
+  elo double precision not null default 1000,
   games int not null default 0,
   distinct_opponents int not null default 0,
   primary key (user_id, tier, kind)

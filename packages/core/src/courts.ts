@@ -1,11 +1,20 @@
 import type { CourtType } from './presets.js';
 
-/** Approximate sizes: full court ~420 m2, half ~200 m2. Thresholds sit near the midpoints. */
-export const FULL_COURT_M2 = 420;
-export const HALF_COURT_M2 = 200;
-export const FULL_MIN_M2 = 310;
-export const HALF_MIN_M2 = 120;
-export const MAX_PLAUSIBLE_M2 = 1200; // bigger than this is probably a multi-court slab or bad polygon
+/** Reference playing-court sizes (not including run-off): indoor 9 x 18 m, beach 8 x 16 m. */
+export const INDOOR_COURT_M2 = 162;
+export const BEACH_COURT_M2 = 128;
+/** One net with its run-off space takes roughly this much ground; used only to estimate a net count from geometry. */
+export const NET_SPACING_M2 = 250;
+export const MIN_PLAUSIBLE_M2 = 60;
+export const MAX_PLAUSIBLE_M2 = 2500; // bigger than this is probably a multi-court slab or a bad polygon
+
+/** Shown in court detail for beach courts. Data only: the app never books or checks anything. */
+export const PERMIT_NOTE =
+  'Check hours and permits before you go. Public beach courts can have posted hours, reservations or permit rules that this app cannot see.';
+
+export function courtNote(courtType: CourtType): string | null {
+  return courtType === 'beach' ? PERMIT_NOTE : null;
+}
 
 export interface OsmElement {
   type: 'node' | 'way' | 'relation';
@@ -51,11 +60,32 @@ export function estimateAreaM2(el: OsmElement): { areaM2: number | null; source:
   return { areaM2: null, source: 'none' };
 }
 
-export function classifyArea(areaM2: number | null): CourtType {
-  if (areaM2 === null || !Number.isFinite(areaM2) || areaM2 > MAX_PLAUSIBLE_M2) return 'unknown';
-  if (areaM2 >= FULL_MIN_M2) return 'full';
-  if (areaM2 >= HALF_MIN_M2) return 'half';
+const SAND_SURFACES = new Set(['sand', 'beach', 'dirt;sand', 'sand;grass']);
+const GRASS_SURFACES = new Set(['grass', 'grass_paver', 'turf', 'artificial_turf', 'astroturf']);
+
+const sportsOf = (t: Record<string, string>): string[] => (t.sport ?? '').split(';').map((x) => x.trim().toLowerCase());
+export const isVolleyballTags = (t: Record<string, string>): boolean => {
+  const sp = sportsOf(t);
+  return t.leisure === 'pitch' && (sp.includes('volleyball') || sp.includes('beach_volleyball'));
+};
+
+/** Court class from OSM tags alone (first match wins). Area is not used: indoor and beach areas overlap once run-off is counted. */
+export function classifyCourt(t: Record<string, string>): CourtType {
+  const surface = (t.surface ?? '').toLowerCase();
+  if (sportsOf(t).includes('beach_volleyball') || SAND_SURFACES.has(surface)) return 'beach';
+  if (t.indoor === 'yes' || t.location === 'indoor') return 'indoor';
+  if (GRASS_SURFACES.has(surface)) return 'grass';
   return 'unknown';
+}
+
+/** Net count: from tags when present (nets, courts, volleyball:nets), else estimated from measured area, else null. */
+export function estimateNets(t: Record<string, string>, areaM2: number | null): number | null {
+  for (const k of ['nets', 'courts', 'volleyball:nets']) {
+    const v = t[k];
+    if (v !== undefined && /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30) return Number(v);
+  }
+  if (areaM2 !== null && Number.isFinite(areaM2) && areaM2 >= MIN_PLAUSIBLE_M2 && areaM2 <= MAX_PLAUSIBLE_M2) return Math.max(1, Math.round(areaM2 / NET_SPACING_M2));
+  return null;
 }
 
 export interface ImportedCourt {
@@ -65,9 +95,10 @@ export interface ImportedCourt {
   lat: number;
   lng: number;
   courtType: CourtType;
-  /** How courtType was decided. 'tag' is only a hint and must be confirmed by a player. */
-  typeSource: 'geometry' | 'bounds' | 'tag' | 'none';
-  hoops: number | null;
+  /** How courtType was decided: 'tag' (OSM tags; a player can still confirm) or 'none' (unknown). */
+  typeSource: 'tag' | 'none';
+  nets: number | null;
+  surface: string | null;
   areaM2: number | null;
   access: string | null;
   indoor: boolean | null;
@@ -75,22 +106,14 @@ export interface ImportedCourt {
 
 export function normalizeElement(el: OsmElement): ImportedCourt | null {
   const t = el.tags ?? {};
-  if (t.leisure !== 'pitch' || t.sport !== 'basketball') return null;
+  if (!isVolleyballTags(t)) return null;
   const g = el.geometry && el.geometry.length > 0 ? el.geometry : null;
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const lat = el.lat ?? el.center?.lat ?? (el.bounds ? (el.bounds.minlat + el.bounds.maxlat) / 2 : g ? mean(g.map((p) => p.lat)) : undefined);
   const lng = el.lon ?? el.center?.lon ?? (el.bounds ? (el.bounds.minlon + el.bounds.maxlon) / 2 : g ? mean(g.map((p) => p.lon)) : undefined);
   if (lat === undefined || lng === undefined) return null;
-
-  const { areaM2, source } = estimateAreaM2(el);
-  let courtType = classifyArea(areaM2);
-  let typeSource: ImportedCourt['typeSource'] = source === 'none' ? 'none' : source;
-  const hoops = t.hoops !== undefined && /^\d+$/.test(t.hoops) ? Number(t.hoops) : null;
-  if (courtType === 'unknown' && source === 'none') {
-    // No geometry in the dataset: fall back to the hoops tag as a weak hint.
-    if (hoops === 2) { courtType = 'full'; typeSource = 'tag'; }
-    else if (hoops === 1) { courtType = 'half'; typeSource = 'tag'; }
-  }
+  const { areaM2 } = estimateAreaM2(el);
+  const courtType = classifyCourt(t);
   return {
     osmType: el.type,
     osmId: el.id,
@@ -98,8 +121,9 @@ export function normalizeElement(el: OsmElement): ImportedCourt | null {
     lat,
     lng,
     courtType,
-    typeSource,
-    hoops,
+    typeSource: courtType === 'unknown' ? 'none' : 'tag',
+    nets: estimateNets(t, areaM2),
+    surface: t.surface ?? null,
     areaM2: areaM2 === null ? null : Math.round(areaM2),
     access: t.access ?? null,
     indoor: t.indoor === 'yes' ? true : t.indoor === 'no' ? false : null,
@@ -107,11 +131,11 @@ export function normalizeElement(el: OsmElement): ImportedCourt | null {
 }
 
 /**
- * 5v5 is full court only. An estimated-full court needs one player confirmation
- * before 5v5 can start; the estimate alone is a guess.
+ * 6v6 needs an indoor or grass court AND at least one player confirmation: a tag is only a hint
+ * (same idea as Basketball Kingz's "5v5 needs a confirmed full court"). 2v2 and 4v4 never need it.
  */
-export function fullCourtConfirmed(c: { courtType: CourtType; fullConfirmations: number }): boolean {
-  return c.courtType === 'full' && c.fullConfirmations >= 1;
+export function courtFitConfirmed(c: { courtType: CourtType; fitConfirmations: number }): boolean {
+  return (c.courtType === 'indoor' || c.courtType === 'grass') && c.fitConfirmations >= 1;
 }
 
 export function summarize(courts: ImportedCourt[]) {
@@ -126,6 +150,7 @@ export function summarize(courts: ImportedCourt[]) {
     bySource: by((c) => c.typeSource),
     byAccess: by((c) => c.access ?? 'unspecified'),
     named: courts.filter((c) => c.name).length,
+    withNets: courts.filter((c) => c.nets !== null).length,
   };
 }
 
@@ -150,7 +175,7 @@ const accessKey = (a: string | null) => a ?? 'unspecified';
 /**
  * Merge pitches within CLUSTER_RADIUS_M into one site. OSM often maps each hoop (or each half) separately, which would
  * split one court's headcount across several rows. Only pitches with the same access value merge, so a private court is
- * never folded into a public one. A site's size: measured geometry wins; otherwise summed hoops (>=2 full, 1 half).
+ * never folded into a public one. A site's class is the class most of its pitches agree on (a tie is unknown); its nets are the sum of the known counts.
  */
 export function clusterCourts(courts: ImportedCourt[], radiusM = CLUSTER_RADIUS_M): CourtSite[] {
   const n = courts.length;
@@ -197,15 +222,13 @@ export function clusterCourts(courts: ImportedCourt[], radiusM = CLUSTER_RADIUS_
     const rep = [...m].sort((a, b) => (a.osmType + a.osmId).localeCompare(b.osmType + b.osmId))[0]!;
     if (m.length === 1) return { ...rep, memberCount: 1, memberOsmIds: [`${rep.osmType}/${rep.osmId}`] };
     const mean = (f: (c: ImportedCourt) => number) => m.reduce((s, c) => s + f(c), 0) / m.length;
-    const hoopsKnown = m.filter((c) => c.hoops !== null);
-    const hoops = hoopsKnown.length ? hoopsKnown.reduce((s, c) => s + (c.hoops ?? 0), 0) : null;
-    const measured = m.filter((c) => c.typeSource === 'geometry' || c.typeSource === 'bounds').sort((a, b) => (b.areaM2 ?? 0) - (a.areaM2 ?? 0))[0];
-    let courtType = measured?.courtType ?? 'unknown';
-    let typeSource: ImportedCourt['typeSource'] = measured?.typeSource ?? 'none';
-    if (!measured && hoops !== null) {
-      courtType = hoops >= 2 ? 'full' : hoops === 1 ? 'half' : 'unknown';
-      typeSource = courtType === 'unknown' ? 'none' : 'tag';
-    }
+    const netsKnown = m.filter((c) => c.nets !== null);
+    const nets = netsKnown.length ? netsKnown.reduce((s, c) => s + (c.nets ?? 0), 0) : null;
+    const votes = new Map<CourtType, number>();
+    for (const c of m) if (c.courtType !== 'unknown') votes.set(c.courtType, (votes.get(c.courtType) ?? 0) + 1);
+    const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+    const courtType: CourtType = ranked.length === 0 || (ranked.length > 1 && ranked[0]![1] === ranked[1]![1]) ? 'unknown' : ranked[0]![0];
+    const sized = [...m].sort((a, b) => (b.areaM2 ?? 0) - (a.areaM2 ?? 0))[0];
     return {
       osmType: rep.osmType,
       osmId: rep.osmId,
@@ -213,9 +236,10 @@ export function clusterCourts(courts: ImportedCourt[], radiusM = CLUSTER_RADIUS_
       lat: mean((c) => c.lat),
       lng: mean((c) => c.lng),
       courtType,
-      typeSource,
-      hoops,
-      areaM2: measured?.areaM2 ?? null,
+      typeSource: courtType === 'unknown' ? 'none' : 'tag',
+      nets,
+      surface: m.find((c) => c.surface !== null)?.surface ?? null,
+      areaM2: sized?.areaM2 ?? null,
       access: rep.access,
       indoor: m.find((c) => c.indoor !== null)?.indoor ?? null,
       memberCount: m.length,

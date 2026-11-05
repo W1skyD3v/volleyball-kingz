@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
   displayRating, eloExpected, eloUpdate, isProvisional, lanePolicy, lastTenHistory, newSkill, ratingLabel, rateGame, repeatWeight,
-  goldForGame, stubPurchaseProvider, priorFor, overallRating,
+  goldForGame, stubPurchaseProvider, priorFor, overallRating, RATING_NAME,
 } from '../src/index.js';
 
 describe('elo', () => {
   it('even match is 50% and winners gain what losers lose (same K)', () => {
-    expect(eloExpected(1200, 1200)).toBe(0.5);
-    const w = eloUpdate({ rating: 1200, games: 20 }, 1200, 1200, true);
-    const l = eloUpdate({ rating: 1200, games: 20 }, 1200, 1200, false);
+    expect(eloExpected(1000, 1000)).toBe(0.5);
+    const w = eloUpdate({ rating: 1000, games: 20 }, 1000, 1000, true);
+    const l = eloUpdate({ rating: 1000, games: 20 }, 1000, 1000, false);
     expect(w.delta).toBe(10);
     expect(l.delta).toBe(-10);
     expect(w.reason).toMatch(/Win/);
   });
   it('weight 0 leaves rating unchanged', () => {
-    const u = eloUpdate({ rating: 1300, games: 3 }, 1300, 1200, true, 0);
-    expect(u.rating).toBe(1300);
+    const u = eloUpdate({ rating: 1100, games: 3 }, 1100, 1000, true, 0);
+    expect(u.rating).toBe(1100);
     expect(u.reason).toMatch(/hold/);
   });
   it('shows only the last 10 games, oldest first', () => {
-    const h = Array.from({ length: 15 }, (_, i) => ({ gameId: `g${i}`, rating: 1200 + i, delta: 1, at: i }));
+    const h = Array.from({ length: 15 }, (_, i) => ({ gameId: `g${i}`, rating: 1000 + i, delta: 1, at: i }));
     const t = lastTenHistory(h.reverse());
     expect(t).toHaveLength(10);
     expect(t[0]!.gameId).toBe('g5');
@@ -49,8 +49,11 @@ describe('openskill plackett-luce', () => {
   });
   it('displays "rating +/- range" and the provisional label', () => {
     const d = displayRating(newSkill());
-    expect(d.rating).toBe(1200);
-    expect(d.label).toBe(`1200 +/- ${d.range}`);
+    expect(d.rating).toBe(1000);
+    expect(d.range).toBe(167); // sigma 25/3 x 20 points per mu
+    expect(d.label).toBe('1000 +/- 167');
+    expect(RATING_NAME).toBe('Net Rating');
+    expect(displayRating({ mu: 30, sigma: 5 }).rating).toBe(1100);
     expect(ratingLabel(newSkill(), { games: 2, distinctOpponents: 2 })).toMatch(/provisional/);
     expect(ratingLabel(newSkill(), { games: 12, distinctOpponents: 6 })).not.toMatch(/provisional/);
     expect(isProvisional({ games: 12, distinctOpponents: 4 })).toBe(true);
@@ -120,3 +123,29 @@ describe('cold-start prior and overall rating', () => {
     expect(o.rating).toBe(displayRating({ mu: (12 * 30 + 3 * 25) / 15, sigma: 1 }).rating);
   });
 });
+
+describe('formats 2v2, 4v4 and 6v6 (Net Rating)', () => {
+  const team = (n: number, mu: number) => Array.from({ length: n }, () => ({ mu, sigma: 8.333 }));
+  it.each([2, 4, 6])('a %i-a-side win moves winners up and losers down, equally for equal teams', (n) => {
+    const r = rateGame(team(n, 25), team(n, 25), 'A');
+    expect(r.A).toHaveLength(n);
+    expect(r.B).toHaveLength(n);
+    for (const u of r.A) expect(u.displayDelta).toBeGreaterThan(0);
+    for (const u of r.B) expect(u.displayDelta).toBeLessThan(0);
+    expect(r.A[0]!.displayDelta).toBe(-r.B[0]!.displayDelta);
+  });
+  it('mixed-rating teams: the underdog side gains more for the same win', () => {
+    const strong = [{ mu: 32, sigma: 3 }, { mu: 30, sigma: 3 }];
+    const weak = [{ mu: 22, sigma: 3 }, { mu: 20, sigma: 3 }];
+    const upset = rateGame(strong, weak, 'B').B[0]!.displayDelta;
+    const expected = rateGame(strong, weak, 'A').A[0]!.displayDelta;
+    expect(upset).toBeGreaterThan(expected);
+  });
+  it('a stronger partner does not hide a weak player: each player is updated from their own rating', () => {
+    const mixed = [{ mu: 35, sigma: 4 }, { mu: 15, sigma: 8 }];
+    const r = rateGame(mixed, team(2, 25), 'A').A;
+    expect(r[1]!.after.mu).not.toBe(r[0]!.after.mu);
+    expect(r[1]!.after.sigma).toBeLessThan(8);
+  });
+});
+

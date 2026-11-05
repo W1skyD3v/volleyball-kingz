@@ -5,7 +5,7 @@
 
 -- ---------------------------------------------------------------- pure helpers (immutable, mirror TypeScript)
 create function public.vk_display_rating(p_mu double precision) returns int language sql immutable as $$
-  select floor(1200 + (p_mu - 25) * 24 + 0.5)::int   -- JS Math.round semantics (half up), not Postgres' half-even
+  select floor(1000 + (p_mu - 25) * 20 + 0.5)::int   -- JS Math.round semantics (half up), not Postgres' half-even
 $$;
 
 create function public.vk_repeat_weight(p_opp int, p_mate int) returns double precision language sql immutable as $$
@@ -207,7 +207,7 @@ begin
     elos := array[]::double precision[]; gms := array[]::int[];
     for i in 1..n loop
       select r.elo, r.games into relo, rgames from public.ratings r where r.user_id = ids[i] and r.tier = g.tier and r.kind = v_kind;
-      if not found then relo := 1200; rgames := 0; end if;
+      if not found then relo := 1000; rgames := 0; end if;
       elos := elos || relo; gms := gms || rgames;
     end loop;
     select avg(elos[k]) into avg_a from generate_subscripts(elos, 1) k where sides[k] = 'A';
