@@ -1,0 +1,25 @@
+{
+  "name": "@vk/scripts",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@vk/avatar": "workspace:*",
+    "@vk/core": "workspace:*",
+    "@vk/guards": "workspace:*",
+    "@supabase/supabase-js": "^2",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
+    "playwright": "1.56.1",
+    "typescript": "~5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

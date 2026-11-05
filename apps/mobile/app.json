@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Volleyball Kingz",
+    "slug": "volleyball-kingz",
+    "scheme": "basketballkingz",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Volleyball Kingz uses your location only while the app is open, to check you in at a court."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Volleyball Kingz",
+      "shortName": "Kingz",
+      "backgroundColor": "#0e0e10",
+      "themeColor": "#0e0e10"
+    },
+    "ios": {
+      "bundleIdentifier": "com.basketballkingz.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.basketballkingz.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e0e10"
+      }
+    },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0e0e10"
+    }
+  }
+}

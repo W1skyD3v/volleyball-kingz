@@ -1,0 +1,26 @@
+name: eas-build
+# Manual only: the free EAS plan gives about 15 Android + 15 iOS builds a month in a low-priority queue, so do not build on every push.
+# No-ops until you add secret EXPO_TOKEN. iOS builds additionally need an Apple Developer account. NOT yet run.
+on:
+  workflow_dispatch:
+    inputs:
+      platform: { description: 'android | ios | all', default: 'android', required: true }
+      profile: { description: 'preview (installable APK for testers) | production', default: 'preview', required: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        if: ${{ env.EXPO_TOKEN != '' }}
+        with: { eas-version: latest, token: '${{ secrets.EXPO_TOKEN }}' }
+      - name: Build
+        if: ${{ env.EXPO_TOKEN != '' }}
+        working-directory: apps/mobile
+        run: eas build --platform "${{ inputs.platform }}" --profile "${{ inputs.profile }}" --non-interactive --no-wait

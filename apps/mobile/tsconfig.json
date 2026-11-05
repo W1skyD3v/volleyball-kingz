@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "jsx": "react-native", "lib": ["ES2022", "DOM"], "types": ["jest"] },
+  "include": ["app", "src", "__tests__", "test-utils", "*.d.ts"]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "volleyball-kingz",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r --if-present test",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "courts:import": "tsx scripts/import-courts.ts",
+    "courts:fullcheck": "tsx scripts/full-court-check.ts",
+    "ratings:sim": "tsx scripts/simulate-ratings.ts",
+    "moderation": "tsx scripts/moderation.ts",
+    "guards": "pnpm --filter @vk/guards test",
+    "assets": "tsx scripts/make-assets.ts",
+    "gold:sim": "tsx scripts/simulate-gold.ts",
+    "catalog:sql": "tsx scripts/gen-catalog-sql.ts",
+    "avatar:gallery": "tsx scripts/avatar-gallery.ts",
+    "a11y": "node scripts/a11y-audit.mjs",
+    "replay:frames": "tsx scripts/replay-frames.ts",
+    "devices": "node scripts/device-check.mjs",
+    "security:web": "node scripts/web-security.mjs",
+    "security:db": "scripts/pentest.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "globals": "^15.0.0",
+    "vitest": "^3.2.0"
+  }
+}

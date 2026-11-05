@@ -1,0 +1,52 @@
+name: supabase
+# Applies the database migrations to your Supabase project, and pings it weekly so the FREE plan does not pause it
+# (free projects pause after a week of inactivity).
+# Runs on push to main or to the testing branch (draft/phase1) when migrations or this file change, weekly, and by hand once this
+# file is on the default branch (GitHub's "Run workflow" button only lists workflows that exist there).
+# Needs secrets SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and variables SUPABASE_PROJECT_REF, SUPABASE_URL, SUPABASE_ANON_KEY.
+on:
+  push:
+    branches: [main, draft/phase1]
+    paths: ['supabase/migrations/**', '.github/workflows/supabase.yml']
+  schedule:
+    - cron: '17 6 * * 1'   # weekly: about 1 billed minute a week
+  workflow_dispatch:
+jobs:
+  migrate:
+    if: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check configuration (names only, never values)
+        run: |
+          missing=""
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured, so no migration was applied. Missing:$missing"
+            echo "Missing:$missing" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Push migrations
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked --yes
+  keepalive:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Ping the project (any API request counts as activity)
+        if: ${{ env.SUPABASE_URL != '' }}
+        run: |
+          curl -fsS "$SUPABASE_URL/rest/v1/courts?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" > /dev/null

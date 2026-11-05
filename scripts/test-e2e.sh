@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# End-to-end adapter test against real PostgREST + Postgres. Needs: Postgres+PostGIS reachable via PG* env, and
+# POSTGREST_BIN pointing at a PostgREST binary (https://github.com/PostgREST/postgrest/releases).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+DB=vk_e2e
+psql -q -d postgres -c "drop database if exists $DB" -c "create database $DB" -c "alter database $DB set search_path = \"\$user\", public, extensions"
+psql -q -v ON_ERROR_STOP=1 -d $DB -f scripts/stub_auth.sql
+for f in supabase/migrations/*.sql; do psql -q -v ON_ERROR_STOP=1 -d $DB -f "$f"; done
+# mutation-testing hook: EXTRA_SQL="..." weakens the schema and the suite must then fail
+if [ -n "${EXTRA_SQL:-}" ]; then psql -q -v ON_ERROR_STOP=1 -d $DB -c "$EXTRA_SQL"; fi
+PGDATABASE=$DB pnpm exec vitest run --root scripts test-e2e.ts

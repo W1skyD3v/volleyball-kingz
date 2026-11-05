@@ -1,0 +1,19 @@
+name: store-assets
+# Manual: renders store screenshots (App Store 1290x2796, Play 1080x1920) from the real web build, no device and no GPU.
+# Download them from the run's artifacts (free artifact storage is 500 MB on GitHub Free).
+on: workflow_dispatch
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vk/scripts exec playwright install --with-deps chromium
+      - run: pnpm --filter @vk/mobile export:web
+        env: { CI: '1' }
+      - run: node scripts/make-screenshots.mjs
+      - uses: actions/upload-artifact@v4
+        with: { name: store-screenshots, path: store/screenshots, retention-days: 14 }

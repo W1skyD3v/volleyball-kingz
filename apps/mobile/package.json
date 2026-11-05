@@ -1,0 +1,47 @@
+{
+  "name": "@vk/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc -p .",
+    "test": "jest",
+    "export:web": "expo export --platform web && node ../../scripts/postprocess-web.mjs dist"
+  },
+  "dependencies": {
+    "@vk/avatar": "workspace:*",
+    "@vk/core": "workspace:*",
+    "@expo-google-fonts/barlow": "^0.4.1",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
+    "@expo/metro-runtime": "~58.0.14",
+    "@supabase/supabase-js": "^2.118.0",
+    "expo": "^58.0.12",
+    "expo-constants": "~58.0.12",
+    "expo-linking": "~58.0.13",
+    "expo-location": "~58.0.16",
+    "expo-router": "~58.0.21",
+    "expo-status-bar": "~58.0.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-svg": "15.16.0",
+    "react-native-web": "~0.21.4"
+  },
+  "devDependencies": {
+    "@react-native/jest-preset": "^0.88.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.2.18",
+    "babel-preset-expo": "^58.0.16",
+    "jest": "^29.7.0",
+    "jest-expo": "~58.0.11",
+    "react-test-renderer": "19.3.0",
+    "typescript": "~5.9.3"
+  }
+}

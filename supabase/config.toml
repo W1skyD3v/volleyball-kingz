@@ -1,0 +1,10 @@
+# Minimal Supabase CLI config (run `supabase init` for a full one). Needs Docker: `supabase start && supabase test db`.
+project_id = "volleyball-kingz"
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed/courts.sql"]

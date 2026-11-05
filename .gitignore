@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.expo/
+dist/
+*.log
+supabase/seed/courts.sql
+apps/mobile/dist/
+store/screenshots/
